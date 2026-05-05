@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avaliação BCM Funchal</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyA3cGM2jQ3QjwI_opowosROsaQ_iGS1kvc",
+    authDomain:        "nc-fx---bcm.firebaseapp.com",
+    databaseURL:       "https://nc-fx---bcm-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "nc-fx---bcm",
+    storageBucket:     "nc-fx---bcm.firebasestorage.app",
+    messagingSenderId: "9.36236488827e+11",
+    appId:             "1:9.36236488827e+11:web:f9d09de5d1f777bbfb2ade",
+    measurementId:     "G-DWJZXRFRQQ"
+  };
+</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg:#f0f4f8; --surface:#fff; --border:#c8d6e5;
+  --primary:#0a4a7c; --primary-light:#1565a8;
+  --accent:#00a8cc; --accent2:#e8f4fd;
+  --text:#1a2a3a; --text-muted:#5a7a9a;
+  --red:#d32f2f; --red-light:#fdecea;
+  --green:#2e7d32; --green-light:#e8f5e9;
+  --yellow:#f57c00; --yellow-light:#fff3e0;
+  --radius:8px; --shadow:0 2px 12px rgba(10,74,124,.10);
+  --shadow-lg:0 8px 32px rgba(10,74,124,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* PIN OVERLAY */
+#pin-overlay{position:fixed;inset:0;background:linear-gradient(135deg,var(--primary),var(--primary-light));display:flex;align-items:center;justify-content:center;z-index:99999}
+#pin-overlay.hidden{display:none!important}
+.pin-box{background:#fff;border-radius:16px;padding:40px 36px;width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.pin-box .pin-logo{width:56px;height:56px;background:var(--accent);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:18px;color:#fff;margin-bottom:16px}
+.pin-box h2{font-size:20px;color:var(--primary);margin-bottom:6px}
+.pin-box p{font-size:13px;color:var(--text-muted);margin-bottom:24px}
+.pin-input{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
+.pin-input input{width:52px;height:56px;border:2px solid var(--border);border-radius:8px;text-align:center;font-size:24px;font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--primary);outline:none;transition:border-color .2s;background:#f8fafc}
+.pin-input input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,168,204,.15)}
+.pin-input input.pin-err{border-color:var(--red);animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pin-err-msg{color:var(--red);font-size:13px;margin-bottom:12px;min-height:18px}
+
+/* CONFIG MODAL */
+#cfg-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:9998;display:none}
+#cfg-modal-overlay.show{display:flex}
+#cfg-pin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:9997;display:none}
+#cfg-pin-overlay.show{display:flex}
+.cfg-modal{background:#fff;border-radius:12px;padding:32px;width:400px;box-shadow:var(--shadow-lg)}
+.cfg-modal h2{font-size:18px;color:var(--primary);margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.cfg-section{margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--border)}
+.cfg-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.cfg-section h3{font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.cfg-row{display:flex;gap:10px;align-items:flex-end}
+.cfg-row .form-group{flex:1}
+
+/* HEADER */
+header{background:var(--primary);height:60px;display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.logo-mark{width:38px;height:38px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:13px;color:#fff;flex-shrink:0}
+header h1{color:#fff;font-size:18px;font-weight:600}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.sync-pill{font-size:11px;color:rgba(255,255,255,.75);font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);padding:4px 10px;border-radius:20px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;animation:pulse 2s infinite;flex-shrink:0}
+.sync-dot.offline{background:#ef5350;animation:none}
+.sync-dot.loading{background:#ffa726}
+.btn-cfg-hdr{background:rgba(255,255,255,.15);border:none;color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .2s}
+.btn-cfg-hdr:hover{background:rgba(255,255,255,.25)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* NAV */
+nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 16px;overflow-x:auto;scrollbar-width:none;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+nav::-webkit-scrollbar{display:none}
+.nav-tab{padding:0 18px;height:48px;display:flex;align-items:center;gap:7px;border:none;background:transparent;color:var(--text-muted);font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;margin-bottom:-1px}
+.nav-tab:hover{color:var(--primary)}
+.nav-tab.active{color:var(--primary);border-bottom-color:var(--accent);background:var(--accent2)}
+
+/* MAIN */
+main{max-width:1300px;margin:0 auto;padding:28px 20px 60px}
+.section{display:none}.section.active{display:block}
+
+/* CONFIG BANNER */
+#cfg-banner{background:#fff3e0;border:2px solid #ffa726;border-radius:8px;padding:16px 20px;margin-bottom:20px;display:none}
+#cfg-banner h3{color:#e65100;font-size:15px;margin-bottom:8px}
+#cfg-banner p{font-size:13px;color:#bf360c;line-height:1.7}
+#cfg-banner code{background:#ffe0b2;padding:1px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:12px}
+
+/* PAGE TITLE */
+.page-title{font-size:22px;font-weight:700;color:var(--primary);margin-bottom:6px;letter-spacing:-.3px}
+.page-desc{font-size:13px;color:var(--text-muted);margin-bottom:24px}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+.card-title{font-size:12px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+
+/* FORMS */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:16px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.form-group input,.form-group select{border:1.5px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--text);background:var(--surface);outline:none;transition:border-color .2s,box-shadow .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,168,204,.12)}
+.form-group input::placeholder{color:#aab8c8}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:6px;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--primary-light);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-success{background:var(--green-light);color:var(--green);border:1px solid #a5d6a7}
+.btn-success:hover:not(:disabled){background:#a5d6a7}
+.btn-danger{background:var(--red-light);color:var(--red);border:1px solid #f5b8b8}
+.btn-danger:hover:not(:disabled){background:#f5b8b8}
+.btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-outline:hover:not(:disabled){background:var(--accent2)}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-red{background:var(--red-light);color:var(--red)}
+.badge-green{background:var(--green-light);color:var(--green)}
+.badge-yellow{background:var(--yellow-light);color:var(--yellow)}
+.badge-blue{background:var(--accent2);color:var(--primary)}
+
+/* PATIENT LIST */
+.patient-list{display:flex;flex-direction:column;gap:6px}
+.patient-item{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--bg);border:1px solid var(--border);border-radius:6px;transition:all .15s}
+.patient-item:hover{border-color:var(--accent);background:var(--accent2)}
+.pat-av{width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.pat-av.fem{background:#8e4585}
+.pat-info{flex:1}
+.pat-name{font-size:14px;font-weight:600}
+.pat-meta{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+thead th{background:var(--primary);color:#fff;padding:11px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap}
+thead th:first-child{border-radius:6px 0 0 0}
+thead th:last-child{border-radius:0 6px 0 0}
+tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
+tbody tr:hover{background:var(--accent2)}
+tbody td{padding:10px 14px;vertical-align:middle}
+.td-val{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500}
+.val-red{color:var(--red);background:var(--red-light);padding:2px 7px;border-radius:4px;display:inline-block}
+.val-green{color:var(--green);background:var(--green-light);padding:2px 7px;border-radius:4px;display:inline-block}
+
+/* SHIFT */
+.shift-group{margin-bottom:28px}
+.shift-hdr{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:10px 18px;border-radius:6px 6px 0 0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.shift-stat{font-size:11.5px;font-weight:400;opacity:.85}
+
+/* SHIFT PAIR LAYOUT - lado a lado */
+.shift-pair{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px}
+@media(max-width:1100px){.shift-pair{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.shift-pair{grid-template-columns:1fr}}
+.shift-pair .shift-group{margin-bottom:0}
+#edit-eval-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:9995;display:none}
+#edit-eval-overlay.show{display:flex}
+#edit-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;z-index:9996;display:none}
+#edit-modal-overlay.show{display:flex}
+.edit-modal{background:#fff;border-radius:12px;padding:28px;width:480px;max-width:95vw;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto}
+.edit-modal h2{font-size:17px;color:var(--primary);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.stat-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.stat-filters .form-group{min-width:150px}
+.shift-pair table{font-size:12px}
+.shift-pair thead th{padding:7px 8px;font-size:10px}
+.shift-pair tbody td{padding:6px 8px}
+.shift-pair .shift-hdr{padding:7px 12px;font-size:12px}
+
+/* STAT BOXES */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.stat-box .val{font-size:28px;font-weight:700;color:var(--primary);font-family:'IBM Plex Mono',monospace;line-height:1;margin-bottom:4px}
+.stat-box .lbl{font-size:11.5px;color:var(--text-muted);font-weight:500}
+
+/* PRIORITY */
+.pri-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--yellow-light);border:1px solid #ffcc80;border-radius:5px;margin-bottom:5px;font-size:13px}
+.pri-rank{width:22px;height:22px;background:var(--yellow);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.chart-card canvas{max-height:280px}
+
+/* ALERTS */
+.alert{padding:12px 16px;border-radius:6px;font-size:13.5px;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.alert-warn{background:var(--yellow-light);color:var(--yellow);border:1px solid #ffcc80}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}
+.empty-state .icon{font-size:44px;margin-bottom:12px;opacity:.5}
+.empty-state p{font-size:14px}
+
+/* LOADING */
+#loading-overlay{position:fixed;inset:0;background:rgba(10,74,124,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;gap:16px}
+.spinner{width:44px;height:44px;border:4px solid rgba(255,255,255,.25);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--primary);color:#fff;padding:12px 20px;border-radius:8px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow-lg);opacity:0;transform:translateY(12px);transition:all .3s;pointer-events:none;z-index:999;max-width:360px}
+#toast.show{opacity:1;transform:translateY(0)}
+
+/* MONTH SEL */
+.month-sel{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.month-sel label{font-size:13px;font-weight:600;color:var(--text-muted)}
+.month-sel input,.month-sel select{border:1.5px solid var(--border);border-radius:6px;padding:7px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:var(--surface);outline:none}
+.month-sel input:focus,.month-sel select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,168,204,.12)}
+
+.pm-note{font-size:11.5px;color:var(--text-muted);font-style:italic;display:flex;align-items:center;gap:5px;margin-bottom:8px}
+
+/* SECTION HEADER for shift group pairs */
+.section-label{font-size:13px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.6px;padding:8px 14px;background:var(--accent2);border-radius:6px;margin-bottom:12px;display:flex;align-items:center;gap:8px;border-left:4px solid var(--accent)}
+
+@media(max-width:640px){.form-grid{grid-template-columns:1fr}.chart-grid{grid-template-columns:1fr}.stat-grid{grid-template-columns:repeat(2,1fr)}header h1{font-size:15px}}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ── PIN OVERLAY ── -->
+<div id="pin-overlay">
+  <div class="pin-box">
+    <div class="pin-logo">BCM</div>
+    <h2>Acesso Restrito</h2>
+    <p>Introduza o PIN de 4 dígitos para aceder à aplicação.</p>
+    <div class="pin-input" id="pin-inputs">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="pin-d0" oninput="pinNext(0)" onkeydown="pinKey(event,0)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="pin-d1" oninput="pinNext(1)" onkeydown="pinKey(event,1)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="pin-d2" oninput="pinNext(2)" onkeydown="pinKey(event,2)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="pin-d3" oninput="pinNext(3)" onkeydown="pinKey(event,3)">
+    </div>
+    <div class="pin-err-msg" id="pin-err"></div>
+    <button class="btn btn-primary" style="width:100%" onclick="checkPin()">🔓 Entrar</button>
+  </div>
+</div>
+
+<!-- ── CONFIG PIN MODAL ── -->
+<div id="cfg-modal-overlay">
+  <div class="cfg-modal">
+    <h2>⚙️ Configurações</h2>
+    <div class="cfg-section">
+      <h3>🔑 Alterar PIN de Acesso ao Site</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Este é o PIN pedido no arranque da aplicação (actualmente: 4 dígitos).</p>
+      <div class="cfg-row">
+        <div class="form-group">
+          <label>Novo PIN (4 dígitos)</label>
+          <input type="password" id="cfg-new-pin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="••••">
+        </div>
+        <div class="form-group">
+          <label>Confirmar PIN</label>
+          <input type="password" id="cfg-confirm-pin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="••••">
+        </div>
+      </div>
+      <div id="cfg-pin-err" style="color:var(--red);font-size:12px;min-height:16px;margin-top:4px"></div>
+      <button class="btn btn-primary" style="margin-top:10px" onclick="savePinChange()">💾 Guardar PIN</button>
+    </div>
+    <div style="margin-top:4px;text-align:right">
+      <button class="btn btn-outline" onclick="closeCfgModal()">✕ Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT EVALUATION MODAL ── -->
+<div id="edit-eval-overlay">
+  <div class="edit-modal">
+    <h2>&#9999;&#65039; Editar Avalia&#231;&#227;o</h2>
+    <input type="hidden" id="edit-ev-id">
+    <div class="form-grid">
+      <div class="form-group"><label>Doente</label><input type="text" id="edit-ev-doente-name" disabled style="background:#f0f4f8;color:var(--text-muted)"></div>
+      <div class="form-group"><label>Data *</label><input type="date" id="edit-ev-data"></div>
+      <div class="form-group"><label>Sobrehidrata&#231;&#227;o OH (%) *</label><input type="number" id="edit-ev-oh" step="0.01" placeholder="ex: 12.5"></div>
+      <div class="form-group"><label>Volume Distrib. Ureia (L)</label><input type="number" id="edit-ev-vdu" step="0.01" placeholder="ex: 35.0"></div>
+      <div class="form-group"><label>Peso Seco Prescrito (kg)</label><input type="number" id="edit-ev-psp" step="0.1" placeholder="ex: 70.5"></div>
+      <div class="form-group"><label>Peso Normohidratado (kg)</label><input type="number" id="edit-ev-pnh" step="0.1" placeholder="ex: 71.0"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveEditEvaluation()">&#128190; Guardar Altera&#231;&#245;es</button>
+      <button class="btn btn-outline" onclick="closeEditEval()">&#10005; Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── EDIT PATIENT MODAL ── -->
+<div id="edit-modal-overlay">
+  <div class="edit-modal">
+    <h2>&#9999;&#65039; Editar Doente</h2>
+    <input type="hidden" id="edit-pid">
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Nome Completo *</label><input type="text" id="edit-nome" placeholder="Nome do doente"></div>
+      <div class="form-group"><label>G&#233;nero *</label>
+        <select id="edit-genero"><option value="">&#8212; Seleccionar &#8212;</option><option>Masculino</option><option>Feminino</option></select>
+      </div>
+      <div class="form-group"><label>Turno *</label>
+        <select id="edit-turno"><option value="">&#8212; Seleccionar &#8212;</option>
+          <option>Par Manh&#227;</option><option>Par Tarde</option><option>Par Noite</option>
+          <option>&#205;mpar Manh&#227;</option><option>&#205;mpar Tarde</option><option>&#205;mpar Noite</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Pacemaker / CDI *</label>
+        <select id="edit-pacemaker"><option value="">&#8212; Seleccionar &#8212;</option><option>N&#227;o</option><option>Sim</option></select>
+      </div>
+      <div class="form-group"><label>M&#233;dico Coordenador *</label>
+        <select id="edit-medico"><option value="">&#8212; Seleccionar &#8212;</option>
+          <option>Dr. Gil</option><option>Dr. Alves</option><option>Dr. Miguel</option>
+          <option>Dr. Dur&#227;es</option><option>Dra. Nicole</option><option>Dra. Carlota</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveEditPatient()">&#128190; Guardar Altera&#231;&#245;es</button>
+      <button class="btn btn-outline" onclick="closeEditModal()">&#10005; Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIG ACCESS PIN MODAL ── -->
+<div id="cfg-pin-overlay">
+  <div class="pin-box">
+    <div class="pin-logo" style="background:#0a4a7c">⚙️</div>
+    <h2>Configurações</h2>
+    <p>Introduza o PIN de acesso às configurações.</p>
+    <div class="pin-input" id="cfg-pin-inputs">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cfg-d0" oninput="cfgPinNext(0)" onkeydown="cfgPinKey(event,0)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cfg-d1" oninput="cfgPinNext(1)" onkeydown="cfgPinKey(event,1)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cfg-d2" oninput="cfgPinNext(2)" onkeydown="cfgPinKey(event,2)">
+      <input type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" id="cfg-d3" oninput="cfgPinNext(3)" onkeydown="cfgPinKey(event,3)">
+    </div>
+    <div class="pin-err-msg" id="cfg-pin-err2"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn btn-primary" onclick="checkCfgPin()">🔓 Entrar</button>
+      <button class="btn btn-outline" onclick="cancelCfgPin()">✕ Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div style="font-size:15px;font-weight:600">A ligar ao Firebase…</div>
+  <div style="font-size:12px;opacity:.7">Aguarda um momento</div>
+</div>
+
+<header>
+  <div class="logo-mark">BCM</div>
+  <h1>Avaliação BCM Funchal</h1>
+  <div class="hdr-right">
+    <div class="sync-pill">
+      <div class="sync-dot loading" id="sync-dot"></div>
+      <span id="sync-lbl">A ligar…</span>
+    </div>
+    <button class="btn-cfg-hdr" onclick="openCfgPin()">⚙️ Configurações</button>
+  </div>
+</header>
+
+<nav>
+  <button class="nav-tab active" onclick="showSection('s-doentes')" data-tab="s-doentes">🏥 Lista de Doentes</button>
+  <button class="nav-tab" onclick="showSection('s-dados')" data-tab="s-dados">📋 Introdução de Dados</button>
+  <button class="nav-tab" onclick="showSection('s-stats')" data-tab="s-stats">📊 Estatísticas</button>
+  <button class="nav-tab" onclick="showSection('s-graficos')" data-tab="s-graficos">📈 Gráficos</button>
+  <button class="nav-tab" onclick="showSection('s-relatorios')" data-tab="s-relatorios">📄 Relatórios</button>
+</nav>
+
+<main>
+<div id="cfg-banner">
+  <h3>⚠️ Firebase não configurado</h3>
+  <p>Abre o ficheiro <code>index.html</code> e preenche a secção <code>FIREBASE_CONFIG</code> no topo com as credenciais do teu projeto.<br>
+  <strong>Onde encontrar:</strong> <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → Projeto → ⚙️ Engrenagem → Definições do projeto → As suas aplicações → Web</p>
+</div>
+
+<!-- ── LISTA DE DOENTES ── -->
+<section id="s-doentes" class="section active">
+  <div class="page-title">Lista de Doentes</div>
+  <div class="page-desc">Registo e gestão dos doentes. Dados sincronizados em tempo real entre todos os dispositivos.</div>
+  <div class="card">
+    <div class="card-title">➕ Adicionar Doente</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nome Completo *</label><input type="text" id="p-nome" placeholder="Nome do doente"></div>
+      <div class="form-group"><label>Género *</label>
+        <select id="p-genero"><option value="">— Seleccionar —</option><option>Masculino</option><option>Feminino</option></select>
+      </div>
+      <div class="form-group"><label>Turno *</label>
+        <select id="p-turno"><option value="">— Seleccionar —</option>
+          <option>Par Manhã</option><option>Par Tarde</option><option>Par Noite</option>
+          <option>Ímpar Manhã</option><option>Ímpar Tarde</option><option>Ímpar Noite</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Pacemaker / CDI *</label>
+        <select id="p-pacemaker"><option value="">— Seleccionar —</option><option>Não</option><option>Sim</option></select>
+      </div>
+      <div class="form-group"><label>Médico Coordenador *</label>
+        <select id="p-medico"><option value="">— Seleccionar —</option>
+          <option>Dr. Gil</option><option>Dr. Alves</option><option>Dr. Miguel</option>
+          <option>Dr. Durães</option><option>Dra. Nicole</option><option>Dra. Carlota</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-add-pat" onclick="addPatient()">➕ Adicionar Doente</button>
+  </div>
+  <div class="card">
+    <div class="card-title">👥 Doentes Registados <span id="pat-count" class="badge badge-blue" style="margin-left:auto">0 doentes</span></div>
+    <div id="pat-list"><div class="empty-state"><div class="icon">🏥</div><p>A carregar…</p></div></div>
+  </div>
+</section>
+
+<!-- ── INTRODUÇÃO DE DADOS ── -->
+<section id="s-dados" class="section">
+  <div class="page-title">Introdução de Dados BCM</div>
+  <div class="page-desc">Registo das avaliações de bioimpedância por doente.</div>
+  <div class="card">
+    <div class="card-title">📋 Nova Avaliação</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Doente *</label>
+        <select id="ev-doente" onchange="onPatSel()"><option value="">— Seleccionar doente —</option></select>
+      </div>
+      <div class="form-group"><label>Data *</label><input type="date" id="ev-data"></div>
+      <div class="form-group"><label>Sobrehidratação OH (%) *</label><input type="number" id="ev-oh" step="0.01" placeholder="ex: 12.5"></div>
+      <div class="form-group"><label>Volume Distrib. Ureia (L)</label><input type="number" id="ev-vdu" step="0.01" placeholder="ex: 35.0"></div>
+      <div class="form-group"><label>Peso Seco Prescrito (kg)</label><input type="number" id="ev-psp" step="0.1" placeholder="ex: 70.5"></div>
+      <div class="form-group"><label>Peso Normohidratado (kg)</label><input type="number" id="ev-pnh" step="0.1" placeholder="ex: 71.0"></div>
+    </div>
+    <div id="pm-warn" class="alert alert-warn" style="display:none">⚠️ Este doente tem Pacemaker/CDI — a avaliação BCM não é possível.</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-save-ev" onclick="addEvaluation()">💾 Guardar Avaliação</button>
+      <button class="btn btn-outline" onclick="clearEvForm()">🗑️ Limpar</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📅 Avaliações Registadas</div>
+    <div class="month-sel"><label>Filtrar por mês:</label><input type="month" id="flt-month" onchange="renderEvTable()"></div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Doente</th><th>Data</th><th>Turno</th><th>OH (%)</th><th>VDU (L)</th><th>Peso Seco (kg)</th><th>Peso Normo (kg)</th><th>Estado</th><th>Ação</th>
+      </tr></thead>
+      <tbody id="ev-tbody"><tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">A carregar…</td></tr></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- ── ESTATÍSTICAS ── -->
+<section id="s-stats" class="section">
+  <div class="page-title">Estatísticas</div>
+  <div class="page-desc">Visão geral das avaliações por turno e alertas clínicos.</div>
+  <div class="month-sel"><label>Mês:</label><input type="month" id="st-month" onchange="renderStats()"></div>
+  <div id="st-boxes" class="stat-grid"></div>
+  <div class="stat-filters">
+    <div class="form-group"><label>Filtrar por M&#233;dico</label>
+      <select id="st-flt-medico" onchange="renderStats()">
+        <option value="">Todos os m&#233;dicos</option>
+        <option>Dr. Gil</option><option>Dr. Alves</option><option>Dr. Miguel</option>
+        <option>Dr. Dur&#227;es</option><option>Dra. Nicole</option><option>Dra. Carlota</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Filtrar por Turno</label>
+      <select id="st-flt-turno" onchange="renderStats()">
+        <option value="">Todos os turnos</option>
+        <option>Par Manh&#227;</option><option>Par Tarde</option><option>Par Noite</option>
+        <option>&#205;mpar Manh&#227;</option><option>&#205;mpar Tarde</option><option>&#205;mpar Noite</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Filtrar por Estado OH</label>
+      <select id="st-flt-estado" onchange="renderStats()">
+        <option value="">Todos</option>
+        <option value="red">&#128308; Acima do limiar</option>
+        <option value="green">&#129002; Normal</option>
+      </select>
+    </div>
+    <button class="btn btn-outline" style="padding:7px 14px;font-size:12px;align-self:flex-end" onclick="clearStatFilters()">&#10005; Limpar filtros</button>
+  </div>
+  <div id="st-shifts"></div>
+  <div class="card">
+    <div class="card-title">⏱️ Top 5 — Avaliação Mais Antiga por Turno</div>
+    <div id="st-priority"><div class="empty-state"><div class="icon">⏱️</div><p>Sem dados.</p></div></div>
+  </div>
+</section>
+
+<!-- ── GRÁFICOS ── -->
+<section id="s-graficos" class="section">
+  <div class="page-title">Gráficos</div>
+  <div class="page-desc">Análise visual. Doentes com Pacemaker/CDI excluídos.</div>
+  <div class="month-sel"><label>Mês:</label><input type="month" id="ch-month" onchange="renderCharts()"></div>
+  <p class="pm-note">ℹ️ Doentes com Pacemaker/CDI excluídos por impossibilidade de avaliação BCM.</p>
+  <div class="chart-grid">
+    <div class="chart-card"><div class="card-title">🔵 Estado Total das Avaliações</div><canvas id="ch-donut"></canvas><div id="ch-donut-leg" style="margin-top:12px;text-align:center;font-size:13px;color:var(--text-muted)"></div></div>
+    <div class="chart-card"><div class="card-title">📊 Avaliados vs Total por Turno</div><canvas id="ch-bar"></canvas></div>
+    <div class="chart-card"><div class="card-title">🔴🟢 Estado por Turno</div><canvas id="ch-status"></canvas></div>
+    <div class="chart-card"><div class="card-title">📋 Cobertura por Turno (%)</div><canvas id="ch-cov"></canvas></div>
+  </div>
+</section>
+
+<!-- ── RELATÓRIOS ── -->
+<section id="s-relatorios" class="section">
+  <div class="page-title">Relatórios</div>
+  <div class="page-desc">Exportação de dados em formato Excel (.xlsx).</div>
+  <div class="card">
+    <div class="card-title">📅 Exportar Avaliações por Mês</div>
+    <div class="form-grid" style="grid-template-columns:280px 1fr">
+      <div class="form-group"><label>Mês</label><input type="month" id="rel-month"></div>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Exporta todas as avaliações do mês com dados clínicos e resumo por turno em duas folhas separadas.</p>
+    <button class="btn btn-success" onclick="exportMonthly()">⬇️ Exportar Avaliações (Excel)</button>
+  </div>
+  <div class="card">
+    <div class="card-title">👥 Exportar Lista de Doentes</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Exporta a tabela completa de doentes com todos os dados de registo.</p>
+    <button class="btn btn-primary" onclick="exportPatients()">⬇️ Exportar Doentes (Excel)</button>
+  </div>
+</section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const SHIFTS = ['Par Manhã','Par Tarde','Par Noite','Ímpar Manhã','Ímpar Tarde','Ímpar Noite'];
+const PAR_SHIFTS = ['Par Manhã','Par Tarde','Par Noite'];
+const IMPAR_SHIFTS = ['Ímpar Manhã','Ímpar Tarde','Ímpar Noite'];
+let db = null, patients = [], evaluations = [];
+
+/* ── PIN MANAGEMENT ── */
+const PIN_KEY = 'bcm_access_pin';
+const CFG_PIN = '2486';
+
+function getAccessPin() {
+  return localStorage.getItem(PIN_KEY) || '2026';
+}
+
+function pinNext(i) {
+  const v = document.getElementById('pin-d'+i).value;
+  if (v && i < 3) document.getElementById('pin-d'+(i+1)).focus();
+  if (i === 3 && v) checkPin();
+}
+function pinKey(e, i) {
+  if (e.key === 'Backspace' && !document.getElementById('pin-d'+i).value && i > 0) {
+    document.getElementById('pin-d'+(i-1)).focus();
+  }
+  if (e.key === 'Enter') checkPin();
+}
+function checkPin() {
+  const pin = [0,1,2,3].map(i => document.getElementById('pin-d'+i).value).join('');
+  if (pin === getAccessPin()) {
+    document.getElementById('pin-overlay').classList.add('hidden');
+  } else {
+    document.getElementById('pin-err').textContent = 'PIN incorrecto. Tente novamente.';
+    [0,1,2,3].forEach(i => {
+      const el = document.getElementById('pin-d'+i);
+      el.value = ''; el.classList.add('pin-err');
+      setTimeout(() => el.classList.remove('pin-err'), 400);
+    });
+    document.getElementById('pin-d0').focus();
+  }
+}
+
+/* ── CONFIG PIN ── */
+function openCfgPin() {
+  [0,1,2,3].forEach(i => document.getElementById('cfg-d'+i).value='');
+  document.getElementById('cfg-pin-err2').textContent='';
+  document.getElementById('cfg-pin-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('cfg-d0').focus(), 50);
+}
+function cancelCfgPin() {
+  document.getElementById('cfg-pin-overlay').classList.remove('show');
+}
+function cfgPinNext(i) {
+  const v = document.getElementById('cfg-d'+i).value;
+  if (v && i < 3) document.getElementById('cfg-d'+(i+1)).focus();
+  if (i === 3 && v) checkCfgPin();
+}
+function cfgPinKey(e, i) {
+  if (e.key === 'Backspace' && !document.getElementById('cfg-d'+i).value && i > 0) {
+    document.getElementById('cfg-d'+(i-1)).focus();
+  }
+  if (e.key === 'Enter') checkCfgPin();
+}
+function checkCfgPin() {
+  const pin = [0,1,2,3].map(i => document.getElementById('cfg-d'+i).value).join('');
+  if (pin === CFG_PIN) {
+    document.getElementById('cfg-pin-overlay').classList.remove('show');
+    document.getElementById('cfg-new-pin').value='';
+    document.getElementById('cfg-confirm-pin').value='';
+    document.getElementById('cfg-pin-err').textContent='';
+    document.getElementById('cfg-modal-overlay').classList.add('show');
+  } else {
+    document.getElementById('cfg-pin-err2').textContent = 'PIN incorrecto.';
+    [0,1,2,3].forEach(i => {
+      const el = document.getElementById('cfg-d'+i);
+      el.value = ''; el.classList.add('pin-err');
+      setTimeout(() => el.classList.remove('pin-err'), 400);
+    });
+    document.getElementById('cfg-d0').focus();
+  }
+}
+function closeCfgModal() {
+  document.getElementById('cfg-modal-overlay').classList.remove('show');
+}
+function savePinChange() {
+  const np = document.getElementById('cfg-new-pin').value.trim();
+  const cp = document.getElementById('cfg-confirm-pin').value.trim();
+  const errEl = document.getElementById('cfg-pin-err');
+  if (!np || np.length !== 4 || !/^\d{4}$/.test(np)) { errEl.textContent = 'O PIN deve ter exactamente 4 dígitos numéricos.'; return; }
+  if (np !== cp) { errEl.textContent = 'Os PINs não coincidem.'; return; }
+  localStorage.setItem(PIN_KEY, np);
+  errEl.textContent = '';
+  showToast('✅ PIN de acesso actualizado com sucesso.');
+  closeCfgModal();
+}
+
+/* ── FIREBASE ── */
+function isCfg() { return FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.includes('COLOCA_AQUI'); }
+
+function initFirebase() {
+  if (!isCfg()) {
+    document.getElementById('cfg-banner').style.display = 'block';
+    document.getElementById('loading-overlay').style.display = 'none';
+    setSyncStatus('offline', 'Não configurado');
+    return;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    setSyncStatus('loading','A ligar…');
+
+    db.ref('patients').on('value', snap => {
+      patients = [];
+      snap.forEach(child => { patients.push({ id: child.key, ...child.val() }); });
+      patients.sort((a,b) => a.nome.localeCompare(b.nome));
+      renderPatList(); populatePatSel(); renderEvTable();
+      if (document.getElementById('s-stats').classList.contains('active')) renderStats();
+      if (document.getElementById('s-graficos').classList.contains('active')) renderCharts();
+      setSyncStatus('online','Em linha · ' + fmtTime());
+      document.getElementById('loading-overlay').style.display = 'none';
+    }, err => {
+      setSyncStatus('offline','Erro de ligação');
+      document.getElementById('loading-overlay').style.display = 'none';
+      showToast('❌ Erro Firebase: ' + err.message, 5000);
+    });
+
+    db.ref('evaluations').on('value', snap => {
+      evaluations = [];
+      snap.forEach(child => { evaluations.push({ id: child.key, ...child.val() }); });
+      evaluations.sort((a,b) => b.data.localeCompare(a.data));
+      renderEvTable();
+      if (document.getElementById('s-stats').classList.contains('active')) renderStats();
+      if (document.getElementById('s-graficos').classList.contains('active')) renderCharts();
+    }, err => console.error(err));
+
+  } catch(e) {
+    setSyncStatus('offline','Erro');
+    document.getElementById('loading-overlay').style.display = 'none';
+    showToast('❌ ' + e.message, 5000);
+  }
+}
+
+function setSyncStatus(st, lbl) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + st;
+  document.getElementById('sync-lbl').textContent = lbl;
+}
+function fmtTime() { return new Date().toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}); }
+
+/* ── NAV ── */
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelector('[data-tab="'+id+'"]').classList.add('active');
+  if (id==='s-dados') { setCurMonth('flt-month'); renderEvTable(); populatePatSel(); }
+  if (id==='s-stats') { setCurMonth('st-month'); renderStats(); }
+  if (id==='s-graficos') { setCurMonth('ch-month'); renderCharts(); }
+  if (id==='s-relatorios') setCurMonth('rel-month');
+}
+function setCurMonth(id) {
+  if (!document.getElementById(id).value) {
+    const n = new Date();
+    document.getElementById(id).value = n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  }
+}
+
+/* ── TOAST ── */
+let toastT;
+function showToast(msg, dur=2800) {
+  clearTimeout(toastT);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  toastT = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+/* ── PATIENTS ── */
+async function addPatient() {
+  const nome=document.getElementById('p-nome').value.trim();
+  const genero=document.getElementById('p-genero').value;
+  const turno=document.getElementById('p-turno').value;
+  const pacemaker=document.getElementById('p-pacemaker').value;
+  const medico=document.getElementById('p-medico').value;
+  if (!nome||!genero||!turno||!pacemaker||!medico) { showToast('⚠️ Preencha todos os campos.'); return; }
+  if (!db) { showToast('⚠️ Firebase não ligado.'); return; }
+  const btn=document.getElementById('btn-add-pat');
+  btn.disabled=true; btn.textContent='A guardar…';
+  try {
+    await db.ref('patients').push({ nome, genero, turno, pacemaker, medico, criadoEm: new Date().toISOString() });
+    ['p-nome','p-genero','p-turno','p-pacemaker','p-medico'].forEach(id => document.getElementById(id).value='');
+    showToast('✅ Doente "'+nome+'" adicionado.');
+  } catch(e) { showToast('❌ '+e.message, 4000); }
+  btn.disabled=false; btn.textContent='➕ Adicionar Doente';
+}
+
+async function delPatient(id, nome) {
+  if (!confirm('Remover "'+nome+'"?\n\nTodas as avaliações associadas serão eliminadas.')) return;
+  try {
+    await db.ref('patients/' + id).remove();
+    const snap = await db.ref('evaluations').orderByChild('patientId').equalTo(id).once('value');
+    const updates = {};
+    snap.forEach(child => { updates[child.key] = null; });
+    if (Object.keys(updates).length) await db.ref('evaluations').update(updates);
+    showToast('🗑️ "'+nome+'" removido.');
+  } catch(e) { showToast('❌ '+e.message, 4000); }
+}
+
+function renderPatList() {
+  const c=document.getElementById('pat-list');
+  document.getElementById('pat-count').textContent=patients.length+' doente'+(patients.length!==1?'s':'');
+  if (!patients.length) { c.innerHTML='<div class="empty-state"><div class="icon">🏥</div><p>Nenhum doente registado.</p></div>'; return; }
+  c.innerHTML='<div class="patient-list">'+patients.map(p => {
+    const ini=p.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const pm=p.pacemaker==='Sim'?'<span class="badge badge-yellow">⚡ PM/CDI</span>':' <span class="badge badge-green">✓ Sem PM</span>';
+    return '<div class="patient-item"><div class="pat-av'+(p.genero==='Feminino'?' fem':'')+'">'+ini+'</div>'
+      +'<div class="pat-info"><div class="pat-name">'+esc(p.nome)+'</div>'
+      +'<div class="pat-meta">'+p.genero+' · '+p.turno+' · '+p.medico+' '+pm+'</div></div>'
+      +'<div style="display:flex;gap:5px"><button class="btn btn-outline btn-xs" onclick="openEditPatient(\''+p.id+'\')" style="color:var(--accent);border-color:var(--accent)">✏️</button><button class="btn btn-danger btn-xs" onclick="delPatient(\\\'"+ p.id +"\\\',\\\'"+ escA(p.nome) +"\\\')">&#x1F5D1;</button></div></div>';
+  }).join('')+'</div>';
+}
+
+
+/* ── EDIT PATIENT ── */
+function openEditPatient(id) {
+  const p = patients.find(x => x.id === id); if (!p) return;
+  document.getElementById('edit-pid').value = p.id;
+  document.getElementById('edit-nome').value = p.nome;
+  document.getElementById('edit-genero').value = p.genero;
+  document.getElementById('edit-turno').value = p.turno;
+  document.getElementById('edit-pacemaker').value = p.pacemaker;
+  document.getElementById('edit-medico').value = p.medico;
+  document.getElementById('edit-modal-overlay').classList.add('show');
+}
+function closeEditModal() {
+  document.getElementById('edit-modal-overlay').classList.remove('show');
+}
+async function saveEditPatient() {
+  const id = document.getElementById('edit-pid').value;
+  const nome = document.getElementById('edit-nome').value.trim();
+  const genero = document.getElementById('edit-genero').value;
+  const turno = document.getElementById('edit-turno').value;
+  const pacemaker = document.getElementById('edit-pacemaker').value;
+  const medico = document.getElementById('edit-medico').value;
+  if (!nome||!genero||!turno||!pacemaker||!medico) { showToast('Preencha todos os campos.'); return; }
+  if (!db) { showToast('Firebase nao ligado.'); return; }
+  try {
+    await db.ref('patients/' + id).update({ nome, genero, turno, pacemaker, medico });
+    closeEditModal();
+    showToast('Doente actualizado com sucesso.');
+  } catch(e) { showToast('Erro: ' + e.message, 4000); }
+}
+function clearStatFilters() {
+  document.getElementById('st-flt-medico').value = '';
+  document.getElementById('st-flt-turno').value = '';
+  document.getElementById('st-flt-estado').value = '';
+  renderStats();
+}
+
+/* ── EVALUATIONS ── */
+function populatePatSel() {
+  const sel=document.getElementById('ev-doente'); const cur=sel.value;
+  sel.innerHTML='<option value="">— Seleccionar doente —</option>';
+  patients.forEach(p => sel.innerHTML+='<option value="'+p.id+'">'+esc(p.nome)+' ('+p.turno+')</option>');
+  if (cur) sel.value=cur;
+}
+
+function onPatSel() {
+  const p=patients.find(x=>x.id===document.getElementById('ev-doente').value);
+  document.getElementById('pm-warn').style.display=p&&p.pacemaker==='Sim'?'flex':'none';
+}
+
+async function addEvaluation() {
+  const pid=document.getElementById('ev-doente').value;
+  const data=document.getElementById('ev-data').value;
+  const oh=document.getElementById('ev-oh').value;
+  const vdu=document.getElementById('ev-vdu').value;
+  const psp=document.getElementById('ev-psp').value;
+  const pnh=document.getElementById('ev-pnh').value;
+  if (!pid||!data||oh==='') { showToast('⚠️ Seleccione o doente, data e OH.'); return; }
+  const p=patients.find(x=>x.id===pid);
+  if (p&&p.pacemaker==='Sim') { showToast('⚠️ PM/CDI — avaliação não permitida.'); return; }
+  if (!db) { showToast('⚠️ Firebase não ligado.'); return; }
+  const btn=document.getElementById('btn-save-ev');
+  btn.disabled=true; btn.textContent='A guardar…';
+  try {
+    await db.ref('evaluations').push({
+      patientId:pid, data, oh:parseFloat(oh),
+      vdu:vdu!==''?parseFloat(vdu):null,
+      psp:psp!==''?parseFloat(psp):null,
+      pnh:pnh!==''?parseFloat(pnh):null,
+      criadoEm:new Date().toISOString()
+    });
+    clearEvForm();
+    showToast('✅ Avaliação guardada para '+p.nome+'.');
+  } catch(e) { showToast('❌ '+e.message, 4000); }
+  btn.disabled=false; btn.textContent='💾 Guardar Avaliação';
+}
+
+async function delEvaluation(id) {
+  if (!confirm('Remover esta avaliação?')) return;
+  try { await db.ref('evaluations/' + id).remove(); showToast('🗑️ Avaliação removida.'); }
+  catch(e) { showToast('❌ '+e.message,4000); }
+}
+
+function clearEvForm() {
+  ['ev-doente','ev-oh','ev-vdu','ev-psp','ev-pnh'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ev-data').value=today();
+  document.getElementById('pm-warn').style.display='none';
+}
+
+function thr(p) { return p.genero==='Masculino'?15:13; }
+
+function renderEvTable() {
+  const month=document.getElementById('flt-month').value;
+  const tbody=document.getElementById('ev-tbody');
+  let evs=month?evaluations.filter(e=>e.data&&e.data.startsWith(month)):[...evaluations];
+  evs.sort((a,b)=>b.data.localeCompare(a.data));
+  if (!evs.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">Sem avaliações para este período.</td></tr>'; return; }
+  tbody.innerHTML=evs.map(ev=>{
+    const p=patients.find(x=>x.id===ev.patientId); if(!p) return '';
+    const t=thr(p); const red=ev.oh>t;
+    return '<tr><td><strong>'+esc(p.nome)+'</strong></td><td>'+fmtDate(ev.data)+'</td><td>'+p.turno+'</td>'
+      +'<td class="td-val"><span class="'+(red?'val-red':'val-green')+'">'+ev.oh.toFixed(1)+'%</span></td>'
+      +'<td class="td-val">'+(ev.vdu!=null?ev.vdu.toFixed(2):'—')+'</td>'
+      +'<td class="td-val">'+(ev.psp!=null?ev.psp.toFixed(1):'—')+'</td>'
+      +'<td class="td-val">'+(ev.pnh!=null?ev.pnh.toFixed(1):'—')+'</td>'
+      +'<td><span class="badge '+(red?'badge-red':'badge-green')+'">'+(red?'&#128308; Alto':'&#129002; Normal')+'</span>'
+      +'<small style="color:var(--text-muted);font-size:10px;display:block">lim: '+t+'%</small></td>'
+      +'<td><div style="display:flex;gap:5px">'
+      +'<button class="btn btn-outline btn-xs" onclick="openEditEval(\''+ev.id+'\')" style="color:var(--accent);border-color:var(--accent)">&#9999;&#65039;</button>'
+      +'<button class="btn btn-danger btn-xs" onclick="delEvaluation(\''+ev.id+'\')">\&#128465;&#65039;</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+
+
+/* ── EDIT EVALUATION ── */
+function openEditEval(id) {
+  const ev = evaluations.find(x => x.id === id); if (!ev) return;
+  const p = patients.find(x => x.id === ev.patientId);
+  document.getElementById('edit-ev-id').value = ev.id;
+  document.getElementById('edit-ev-doente-name').value = p ? p.nome : '';
+  document.getElementById('edit-ev-data').value = ev.data;
+  document.getElementById('edit-ev-oh').value = ev.oh;
+  document.getElementById('edit-ev-vdu').value = ev.vdu != null ? ev.vdu : '';
+  document.getElementById('edit-ev-psp').value = ev.psp != null ? ev.psp : '';
+  document.getElementById('edit-ev-pnh').value = ev.pnh != null ? ev.pnh : '';
+  document.getElementById('edit-eval-overlay').classList.add('show');
+}
+function closeEditEval() {
+  document.getElementById('edit-eval-overlay').classList.remove('show');
+}
+async function saveEditEvaluation() {
+  const id = document.getElementById('edit-ev-id').value;
+  const data = document.getElementById('edit-ev-data').value;
+  const oh = document.getElementById('edit-ev-oh').value;
+  const vdu = document.getElementById('edit-ev-vdu').value;
+  const psp = document.getElementById('edit-ev-psp').value;
+  const pnh = document.getElementById('edit-ev-pnh').value;
+  if (!data || oh === '') { showToast('Data e OH sao obrigatorios.'); return; }
+  if (!db) { showToast('Firebase nao ligado.'); return; }
+  try {
+    await db.ref('evaluations/' + id).update({
+      data,
+      oh: parseFloat(oh),
+      vdu: vdu !== '' ? parseFloat(vdu) : null,
+      psp: psp !== '' ? parseFloat(psp) : null,
+      pnh: pnh !== '' ? parseFloat(pnh) : null
+    });
+    closeEditEval();
+    showToast('Avaliacao actualizada com sucesso.');
+  } catch(e) { showToast('Erro: ' + e.message, 4000); }
+}
+
+/* ── STATISTICS ── */
+function buildShiftBlock(shift, mEvs, fltMedico, fltEstado) {
+  let sp = patients.filter(p => p.turno === shift && p.pacemaker !== 'Sim');
+  if (fltMedico) sp = sp.filter(p => p.medico === fltMedico);
+  if (fltEstado) {
+    sp = sp.filter(p => {
+      const lastEv = evaluations.filter(e => e.patientId === p.id).sort((a,b) => b.data.localeCompare(a.data))[0];
+      if (!lastEv) return fltEstado === 'red'; // never evaluated = treat as red
+      return fltEstado === 'red' ? lastEv.oh > thr(p) : lastEv.oh <= thr(p);
+    });
+  }
+  if (!sp.length) return '';
+  const se = mEvs.filter(e => { const p = patients.find(x => x.id === e.patientId); return p && p.turno === shift; });
+  const cnt = new Set(se.map(e => e.patientId)).size;
+  const rows = sp.map(p => {
+    const allEvs = evaluations.filter(e => e.patientId === p.id).sort((a,b) => b.data.localeCompare(a.data));
+    const lastEv = allEvs[0] || null;
+    const t = thr(p);
+    const ohCell = lastEv
+      ? '<span class="'+(lastEv.oh > t ? 'val-red' : 'val-green')+'">'+lastEv.oh.toFixed(1)+'%</span>'
+      : '<span style="color:var(--text-muted)">—</span>';
+    const lastDate = lastEv ? fmtDate(lastEv.data) : '<span style="color:var(--red);font-weight:600">Nunca</span>';
+    const psp = lastEv && lastEv.psp != null ? lastEv.psp.toFixed(1)+' kg' : '<span style="color:var(--text-muted)">—</span>';
+    const pnh = lastEv && lastEv.pnh != null ? lastEv.pnh.toFixed(1)+' kg' : '<span style="color:var(--text-muted)">—</span>';
+    return '<tr>'
+      +'<td><strong>'+esc(p.nome)+'</strong><br><small style="color:var(--text-muted)">'+p.genero+' · lim: '+t+'%</small></td>'
+      +'<td class="td-val" style="text-align:center">'+ohCell+'</td>'
+      +'<td style="text-align:center;font-size:12px">'+lastDate+'</td>'
+      +'<td class="td-val" style="text-align:center">'+psp+'</td>'
+      +'<td class="td-val" style="text-align:center">'+pnh+'</td>'
+      +'</tr>';
+  }).join('');
+  return '<div class="shift-group">'
+    +'<div class="shift-hdr">'+sIcon(shift)+' '+shift+'<span class="shift-stat">Avaliados: '+cnt+' / '+sp.length+'</span></div>'
+    +'<div class="table-wrap"><table><thead><tr>'
+    +'<th style="min-width:160px">Doente</th><th style="text-align:center">OH (%)</th><th style="text-align:center">Última Avaliação</th><th style="text-align:center">Peso Seco Pres. (kg)</th><th style="text-align:center">Peso Normo (kg)</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+function renderStats() {
+  const month = document.getElementById('st-month').value; if (!month) return;
+  const elig = patients.filter(p => p.pacemaker !== 'Sim');
+  const mEvs = evaluations.filter(e => e.data && e.data.startsWith(month));
+  const evIds = new Set(mEvs.map(e => e.patientId));
+  let red=0, green=0;
+  mEvs.forEach(ev => { const p=patients.find(x=>x.id===ev.patientId); if(!p||p.pacemaker==='Sim') return; if(ev.oh>thr(p))red++;else green++; });
+
+  document.getElementById('st-boxes').innerHTML=
+    '<div class="stat-box"><div class="val">'+elig.length+'</div><div class="lbl">Elegíveis (sem PM)</div></div>'
+    +'<div class="stat-box"><div class="val" style="color:var(--green)">'+evIds.size+'</div><div class="lbl">Avaliados</div></div>'
+    +'<div class="stat-box"><div class="val" style="color:var(--yellow)">'+(elig.length-evIds.size)+'</div><div class="lbl">Por avaliar</div></div>'
+    +'<div class="stat-box"><div class="val" style="color:var(--red)">'+red+'</div><div class="lbl">🔴 Acima limiar</div></div>'
+    +'<div class="stat-box"><div class="val" style="color:var(--green)">'+green+'</div><div class="lbl">🟢 Normal</div></div>'
+    +'<div class="stat-box"><div class="val">'+patients.filter(p=>p.pacemaker==='Sim').length+'</div><div class="lbl">Com PM/CDI</div></div>';
+
+  let html = '';
+
+  // TURNOS PARES - lado a lado
+  const fltMedico = document.getElementById('st-flt-medico').value;
+  const fltTurno = document.getElementById('st-flt-turno').value;
+  const fltEstado = document.getElementById('st-flt-estado').value;
+  const activeShifts = fltTurno ? [fltTurno] : SHIFTS;
+  const activePar = PAR_SHIFTS.filter(s => activeShifts.includes(s));
+  const activeImpar = IMPAR_SHIFTS.filter(s => activeShifts.includes(s));
+  const parBlocks = activePar.map(s => buildShiftBlock(s, mEvs, fltMedico, fltEstado)).filter(Boolean);
+  if (parBlocks.length) {
+    html += '<div class="section-label">📅 Turnos Pares</div>';
+    html += '<div class="shift-pair">' + parBlocks.join('') + '</div>';
+  }
+
+  // TURNOS ÍMPARES - lado a lado
+  const imparBlocks = activeImpar.map(s => buildShiftBlock(s, mEvs, fltMedico, fltEstado)).filter(Boolean);
+  if (imparBlocks.length) {
+    html += '<div class="section-label">📅 Turnos Ímpares</div>';
+    html += '<div class="shift-pair">' + imparBlocks.join('') + '</div>';
+  }
+
+  document.getElementById('st-shifts').innerHTML = html || '<div class="empty-state"><div class="icon">📊</div><p>Sem dados.</p></div>';
+  renderPriority();
+}
+
+function renderPriority() {
+  let html='';
+  SHIFTS.forEach(shift=>{
+    const sp=patients.filter(p=>p.turno===shift&&p.pacemaker!=='Sim'); if(!sp.length) return;
+    const wd=sp.map(p=>{ const last=evaluations.filter(e=>e.patientId===p.id).sort((a,b)=>b.data.localeCompare(a.data))[0]; return {p,lastDate:last?last.data:null}; });
+    wd.sort((a,b)=>{ if(!a.lastDate&&!b.lastDate) return a.p.nome.localeCompare(b.p.nome,'pt'); if(!a.lastDate) return -1; if(!b.lastDate) return 1; return a.lastDate.localeCompare(b.lastDate); });
+    html+='<div style="margin-bottom:20px"><div style="font-size:12px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding:6px 10px;background:var(--accent2);border-radius:5px">'+sIcon(shift)+' '+shift+'</div>';
+    wd.slice(0,5).forEach((item,i)=>{
+      const days=item.lastDate?daysBetween(item.lastDate,today()):null;
+      const s=days!==null?'há '+days+' dias ('+fmtDate(item.lastDate)+')':' Nunca avaliado';
+      html+='<div class="pri-item"><div class="pri-rank">'+(i+1)+'</div><div style="flex:1"><strong>'+esc(item.p.nome)+'</strong><span style="margin-left:8px;font-size:11.5px;color:var(--text-muted)">'+s+'</span></div></div>';
+    });
+    html+='</div>';
+  });
+  document.getElementById('st-priority').innerHTML=html||'<div class="empty-state"><div class="icon">⏱️</div><p>Sem dados.</p></div>';
+}
+
+/* ── CHARTS ── */
+const CI={};
+function dC(id) { if(CI[id]){CI[id].destroy();delete CI[id];} }
+
+function renderCharts() {
+  const month=document.getElementById('ch-month').value; if(!month) return;
+  const elig=patients.filter(p=>p.pacemaker!=='Sim');
+  const mEvs=evaluations.filter(e=>e.data&&e.data.startsWith(month));
+  let red=0,green=0; const evIds=new Set();
+  mEvs.forEach(ev=>{ const p=patients.find(x=>x.id===ev.patientId); if(!p||p.pacemaker==='Sim') return; evIds.add(ev.patientId); if(ev.oh>thr(p))red++;else green++; });
+  const notEv=elig.length-evIds.size;
+
+  dC('ch-donut');
+  CI['ch-donut']=new Chart(document.getElementById('ch-donut'),{type:'doughnut',data:{labels:['🔴 Acima','🟢 Normal','⬜ Por avaliar'],datasets:[{data:[red,green,notEv],backgroundColor:['#ef5350','#66bb6a','#b0bec5'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:12}}},tooltip:{callbacks:{label:ctx=>{ const tot=ctx.dataset.data.reduce((a,b)=>a+b,0); return ' '+ctx.label+': '+ctx.parsed+' '+(tot?'('+((ctx.parsed/tot)*100).toFixed(1)+'%)':'(0%)'); }}}}}});
+  const tot=red+green+notEv||1;
+  document.getElementById('ch-donut-leg').innerHTML='🔴 '+((red/tot)*100).toFixed(1)+'% &nbsp;|&nbsp; 🟢 '+((green/tot)*100).toFixed(1)+'% &nbsp;|&nbsp; ⬜ '+((notEv/tot)*100).toFixed(1)+'%';
+
+  const sc=SHIFTS.map(s=>new Set(mEvs.filter(e=>{const p=patients.find(x=>x.id===e.patientId);return p&&p.turno===s&&p.pacemaker!=='Sim';}).map(e=>e.patientId)).size);
+  const st=SHIFTS.map(s=>patients.filter(p=>p.turno===s&&p.pacemaker!=='Sim').length);
+  const lbl=SHIFTS.map(s=>s.replace('Ímpar','Í.'));
+
+  dC('ch-bar');
+  CI['ch-bar']=new Chart(document.getElementById('ch-bar'),{type:'bar',data:{labels:lbl,datasets:[{label:'Avaliados',data:sc,backgroundColor:'#1565a8',borderRadius:4},{label:'Total elegíveis',data:st,backgroundColor:'#b0bec5',borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  const sr=SHIFTS.map(s=>mEvs.filter(e=>{const p=patients.find(x=>x.id===e.patientId);return p&&p.turno===s&&p.pacemaker!=='Sim'&&e.oh>thr(p);}).length);
+  const sg=SHIFTS.map(s=>mEvs.filter(e=>{const p=patients.find(x=>x.id===e.patientId);return p&&p.turno===s&&p.pacemaker!=='Sim'&&e.oh<=thr(p);}).length);
+
+  dC('ch-status');
+  CI['ch-status']=new Chart(document.getElementById('ch-status'),{type:'bar',data:{labels:lbl,datasets:[{label:'🔴 Acima',data:sr,backgroundColor:'#ef5350',borderRadius:4},{label:'🟢 Normal',data:sg,backgroundColor:'#66bb6a',borderRadius:4}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  const cov=SHIFTS.map((s,i)=>st[i]?Math.round((sc[i]/st[i])*100):0);
+  dC('ch-cov');
+  CI['ch-cov']=new Chart(document.getElementById('ch-cov'),{type:'bar',data:{labels:lbl,datasets:[{label:'Cobertura (%)',data:cov,backgroundColor:cov.map(v=>v>=80?'#66bb6a':v>=50?'#ffa726':'#ef5350'),borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}}}});
+}
+
+/* ── EXCEL ── */
+function exportMonthly() {
+  const month=document.getElementById('rel-month').value;
+  if(!month){showToast('⚠️ Seleccione um mês.');return;}
+  const evs=evaluations.filter(e=>e.data&&e.data.startsWith(month));
+  if(!evs.length){showToast('⚠️ Sem avaliações para este mês.');return;}
+  const [yr,mo]=month.split('-');
+  const rows=evs.sort((a,b)=>a.data.localeCompare(b.data)).map(ev=>{
+    const p=patients.find(x=>x.id===ev.patientId); if(!p) return null;
+    const t=thr(p);
+    return {'Nome':p.nome,'Género':p.genero,'Turno':p.turno,'Médico':p.medico,'Data':fmtDate(ev.data),'OH (%)':ev.oh,'Limiar (%)':t,'Estado':ev.oh>t?'ACIMA':'NORMAL','VDU (L)':ev.vdu??'','Peso Seco (kg)':ev.psp??'','Peso Normo (kg)':ev.pnh??''};
+  }).filter(Boolean);
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:30},{wch:12},{wch:16},{wch:16},{wch:14},{wch:10},{wch:12},{wch:10},{wch:10},{wch:18},{wch:18}];
+  if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};
+  XLSX.utils.book_append_sheet(wb,ws,'Avaliações '+mo+'-'+yr);
+  const sum=SHIFTS.map(s=>{ const sp=patients.filter(p=>p.turno===s&&p.pacemaker!=='Sim'); const se=evs.filter(e=>{const p=patients.find(x=>x.id===e.patientId);return p&&p.turno===s;}); const cnt=new Set(se.map(e=>e.patientId)).size; return{'Turno':s,'Total elegíveis':sp.length,'Avaliados':cnt,'Pendentes':sp.length-cnt}; });
+  const ws2=XLSX.utils.json_to_sheet(sum);
+  ws2['!cols']=[{wch:18},{wch:16},{wch:12},{wch:12}];
+  if(ws2['!ref'])ws2['!autofilter']={ref:ws2['!ref']};
+  XLSX.utils.book_append_sheet(wb,ws2,'Resumo por Turno');
+  XLSX.writeFile(wb,'BCM_Avaliacoes_'+yr+'_'+mo+'.xlsx');
+  showToast('✅ Exportado: BCM_Avaliacoes_'+yr+'_'+mo+'.xlsx');
+}
+
+function exportPatients() {
+  if(!patients.length){showToast('⚠️ Sem doentes.');return;}
+  const rows=patients.map(p=>({'Nome':p.nome,'Género':p.genero,'Turno':p.turno,'Pacemaker/CDI':p.pacemaker,'Médico Coordenador':p.medico,'Limiar OH (L)':thr(p)}));
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:32},{wch:12},{wch:16},{wch:14},{wch:20},{wch:14}];
+  if(ws['!ref'])ws['!autofilter']={ref:ws['!ref']};
+  XLSX.utils.book_append_sheet(wb,ws,'Doentes');
+  XLSX.writeFile(wb,'BCM_Lista_Doentes.xlsx');
+  showToast('✅ Lista de doentes exportada.');
+}
+
+/* ── HELPERS ── */
+function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return day+'/'+m+'/'+y;}
+function today(){return new Date().toISOString().slice(0,10);}
+function daysBetween(d1,d2){return Math.floor((new Date(d2)-new Date(d1))/86400000);}
+function sIcon(s){return s.includes('Manhã')?'☀️':s.includes('Tarde')?'🌤️':'🌙';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escA(s){return String(s).replace(/'/g,"\\'");}
+
+/* ── BOOT ── */
+document.getElementById('ev-data').value=today();
+setCurMonth('flt-month');
+setCurMonth('rel-month');
+setTimeout(()=>document.getElementById('pin-d0').focus(),100);
+initFirebase();
+</script>
+</body>
+</html>
